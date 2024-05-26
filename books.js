@@ -44,7 +44,7 @@ const getBookInfo = async (url, page) => {
       publisher: getTextContent(".property_publisher .property_value"),
       language: getTextContent(".property_language .property_value"),
       pages: getTextContent(".property_pages .property_value span"),
-      isbn: getTextContent(".property_isbn .property_value:first-child"),
+      isbn: getTextContent(".property_isbn .property_value"),
       fileType: getTextContent(".property__file .property_value"),
       coverPath,
     };
@@ -183,5 +183,4 @@ const getBooks = async (url) => {
   await browser.close();
 };
 
-//await getBooks("https://es.singlelogin.re/users/zrecommended#959363");
 export default getBooks;

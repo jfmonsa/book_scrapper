@@ -1,18 +1,17 @@
 import puppeteer from "puppeteer";
-import pkg from "pg";
-const { Client } = pkg;
+import { pool } from "./db.js";
 
-const getQuotes = async () => {
-  // Conexión a la base de datos
-  //TODO: arreglar el archivo para que funcione importando el pool y hacerlo más modular
-
-  const client = new Client({});
-
-  await client.connect();
-
-  // Start a Puppeteer session with:
-  // - a visible browser (`headless: false` - easier to debug because you'll see the browser in action)
-  // - no default viewport (`defaultViewport: null` - website page will in full width and height)
+//Aux functions
+/*
+  output
+  * return an array of objects such as each object has the form:
+    cat = {
+      categorie: <str>,
+      subcategories: [<str1>, <str2>, ... <strn>]
+    }
+*/
+const getCategories = async () => {
+  // Start a Puppeteer session
   const browser = await puppeteer.launch({
     headless: false,
     defaultViewport: null,
@@ -21,15 +20,10 @@ const getQuotes = async () => {
   // Open a new page
   const page = await browser.newPage();
 
-  // On this new page:
-  // - open the "http://quotes.toscrape.com/" website
-  // - wait until the dom content is loaded (HTML is ready)
   await page.goto("https://es.singlelogin.re/categories", {
     waitUntil: "domcontentloaded",
   });
 
-  // Get page data
-  // Extrae los datos
   const data = await page.evaluate(() => {
     const containers = document.querySelectorAll("div.subcategories-container");
     const result = [];
@@ -54,15 +48,18 @@ const getQuotes = async () => {
 
     return result;
   });
+  // Close the browser
+  await browser.close();
 
-  //display data
-  console.log(JSON.stringify(data, null, 2));
+  return data;
+};
 
+const queryCategories = async (data) => {
   // Inserta los datos en la base de datos
   try {
     for (const category of data) {
       // Inserta la categoría
-      const resCategory = await client.query(
+      const resCategory = await pool.query(
         "INSERT INTO CATEGORY (categoryName) VALUES ($1) RETURNING id",
         [category.category_name]
       );
@@ -71,7 +68,7 @@ const getQuotes = async () => {
 
       // Inserta las subcategorías
       for (const subcategory of category.subcategories) {
-        await client.query(
+        await pool.query(
           "INSERT INTO SUBCATEGORY (subCategoryName, idCategoryFather) VALUES ($1, $2)",
           [subcategory, categoryId]
         );
@@ -81,13 +78,14 @@ const getQuotes = async () => {
   } catch (error) {
     console.error("Error insertando los datos:", error);
   } finally {
-    // Cierra la conexión a la base de datos
-    await client.end();
   }
-
-  // Close the browser
-  await browser.close();
 };
 
-// Start the scraping
-getQuotes();
+const getAndQueryCategories = async () => {
+  const data = await getCategories();
+  //display data
+  console.log(JSON.stringify(data, null, 2));
+  await queryCategories(data);
+};
+
+export default getAndQueryCategories;

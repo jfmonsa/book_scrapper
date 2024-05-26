@@ -1,4 +1,5 @@
 import getBooks from "./books.js";
+import getAndQueryCategories from "./categories.js";
 import readline from "readline";
 
 const rl = readline.createInterface({
@@ -8,11 +9,12 @@ const rl = readline.createInterface({
 
 function showMenu() {
   console.log(`
-    Por favor, selecciona una opción:
+    Menú:
     1. scrappear libros relacionados
-    2. scrappear categorias (Modificar para que funcione)
+    2. scrappear categorias
     3. Salir
-    `);
+    
+    Por favor, selecciona una opción: `);
 }
 
 // Aux function
@@ -31,8 +33,14 @@ async function handleOption(option) {
       await getBooks(url);
       break;
     case "2":
-      const category = await askQuestion("Ingresa la categoría a scrappear: ");
-      console.log(`Categoría ingresada: ${category}`);
+      const conf = await askQuestion(
+        `El scrapping de categorias solo debe realizarlo una vez, presione 's' para continuar: `
+      );
+      if (conf.trim().toLowerCase() === "s") {
+        await getAndQueryCategories();
+      } else {
+        console.log("No se realizará el scrapping de categorías.");
+      }
       break;
     case "3":
       console.log("Saliendo...");
@@ -42,8 +50,8 @@ async function handleOption(option) {
       break;
   }
 
-  const continueResponse = await askQuestion("¿Deseas continuar? (s/n): ");
-  return continueResponse.toLowerCase() === "s";
+  let cotinue = await askQuestion("¿Deseas continuar? (s/n): ");
+  if (cotinue.trim().toLowerCase() != "s") return false;
 }
 
 async function main() {

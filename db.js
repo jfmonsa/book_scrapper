@@ -20,16 +20,10 @@ if (BD == "remota") {
     database: process.env.LOCALDB_NAME,
     password: process.env.LOCALDB_PASSWORD,
     port: process.env.LOCALDB_PORT,
-    /*user: 'postgres',
-    host: 'localhost',
-    database: 'AtlasBooks',
-    password: 'Atlpassword08.',
-    port: 5432,*/
   });
 }
 pool.connect((err) => {
   if (err) throw err;
-  console.log(`Conexion a la base de datos ${BD} completada`);
 });
 
 export { pool };
