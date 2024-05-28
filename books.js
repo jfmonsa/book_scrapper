@@ -39,7 +39,11 @@ const getBookInfo = async (url, page) => {
       description: getTextContent("div#bookDescriptionBox")
         ? getTextContent("div#bookDescriptionBox")
         : "No description",
-      categories: getTextContent(".property_categories .property_value a"),
+      subcategory: getTextContent(".property_categories .property_value a")
+        ? getTextContent(".property_categories .property_value a").split(
+            " - "
+          )[1]
+        : null,
       year: getTextContent(".property_year .property_value"),
       publisher: getTextContent(".property_publisher .property_value"),
       language: getTextContent(".property_language .property_value"),
@@ -128,12 +132,11 @@ const insertBookInfo = async (book) => {
     /**
      * 1. si la categoria existe, se hace un insert en   BOOK_IN_SUBCATEGORY
      */
-    if (book.categories) {
+    if (book.subcategory) {
       const verifyExistanceSubcategory = await pool.query(
-        "SELECT id FROM SUBCATEGORY WHERE subcategoryname = $1",
-        [book.categories.split(" - ")[1]]
+        `SELECT id FROM SUBCATEGORY WHERE subcategoryname = '${book.subcategory}'`
       );
-      if (verifyExistanceSubcategory.rows > 0) {
+      if (verifyExistanceSubcategory.rows.length > 0) {
         const insertSubcategoryQueries = await pool.query(
           "INSERT INTO BOOK_IN_SUBCATEGORY (idBook, idSubcategory) VALUES ($1, $2)",
           [bookId, verifyExistanceSubcategory.rows[0].id]
