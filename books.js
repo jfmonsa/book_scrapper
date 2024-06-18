@@ -35,7 +35,7 @@ const getBookInfo = async (url, page) => {
 
     return {
       title: getTextContent(".col-sm-9 > h1"),
-      author: getTextContent('a[itemprop="author"]'),
+      author: getTextContent("a.color1"),
       description: getTextContent("div#bookDescriptionBox")
         ? getTextContent("div#bookDescriptionBox")
         : "No description",
@@ -129,9 +129,7 @@ const insertBookInfo = async (book) => {
     );
 
     // ==== insert into  BOOK_IN_SUBCATEGORY table ====
-    /**
-     * 1. si la categoria existe, se hace un insert en   BOOK_IN_SUBCATEGORY
-     */
+    //1. si la categoria existe, se hace un insert en   BOOK_IN_SUBCATEGORY
     if (book.subcategory) {
       const verifyExistanceSubcategory = await pool.query(
         `SELECT id FROM SUBCATEGORY WHERE subcategoryname = '${book.subcategory}'`
@@ -173,6 +171,7 @@ const getBooks = async (url) => {
   const bookData = [];
   for (const link of links) {
     const book = await getBookInfo(link, page);
+    console.log(book);
     await insertBookInfo(book);
     bookData.push(book);
   }
