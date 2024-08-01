@@ -1,12 +1,6 @@
 import getBooks from "./books.js";
 import getAndQueryCategories from "./categories.js";
-//import readline from "readline";
 import readline from "readline-sync";
-
-/*const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});*/
 
 function showMenu() {
   console.log(`
@@ -17,11 +11,6 @@ function showMenu() {
     
     Por favor, selecciona una opción: `);
 }
-
-// Aux function
-/*function askQuestion(query) {
-  return new Promise((resolve) => rl.question(query, resolve));
-}*/
 
 async function handleOption(option) {
   switch (option) {
