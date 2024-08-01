@@ -1,11 +1,12 @@
 import getBooks from "./books.js";
 import getAndQueryCategories from "./categories.js";
-import readline from "readline";
+//import readline from "readline";
+import readline from "readline-sync";
 
-const rl = readline.createInterface({
+/*const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
-});
+});*/
 
 function showMenu() {
   console.log(`
@@ -18,14 +19,14 @@ function showMenu() {
 }
 
 // Aux function
-function askQuestion(query) {
+/*function askQuestion(query) {
   return new Promise((resolve) => rl.question(query, resolve));
-}
+}*/
 
 async function handleOption(option) {
   switch (option) {
     case "1":
-      const url = await askQuestion(
+      const url = readline.question(
         `
         Ej: "https://es.singlelogin.re/users/zrecommended#959363"
         Ingresa la url que recomienda los libros: `
@@ -33,7 +34,7 @@ async function handleOption(option) {
       await getBooks(url);
       break;
     case "2":
-      const conf = await askQuestion(
+      const conf = readline.question(
         `El scrapping de categorias solo debe realizarlo una vez, presione 's' para continuar: `
       );
       if (conf.trim().toLowerCase() === "s") {
@@ -50,18 +51,18 @@ async function handleOption(option) {
       break;
   }
 
-  let cotinue = await askQuestion("¿Deseas continuar? (s/n): ");
+  let cotinue = readline.question("¿Deseas continuar? (s/n): ");
   if (cotinue.trim().toLowerCase() != "s") return false;
+  return true;
 }
 
 async function main() {
   let running = true;
   while (running) {
     showMenu();
-    const option = await askQuestion("Selecciona una opción: ");
+    const option = readline.question("Selecciona una opción: ");
     running = await handleOption(option);
   }
-  rl.close();
 }
 
 main();

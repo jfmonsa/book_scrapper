@@ -16,6 +16,7 @@
     "axios": "^1.7.2",
     "dotenv": "^16.4.5",
     "pg": "^8.11.5",
-    "puppeteer": "^22.9.0"
+    "puppeteer": "^22.9.0",
+    "readline-sync": "^1.4.10"
   }
 }
