@@ -52,6 +52,7 @@ async function main() {
     const option = readline.question("Selecciona una opción: ");
     running = await handleOption(option);
   }
+  process.exit(0);
 }
 
 main();
