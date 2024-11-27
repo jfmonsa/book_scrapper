@@ -17,7 +17,7 @@ async function handleOption(option) {
     case "1":
       const url = readline.question(
         `
-        Ej: "https://es.singlelogin.re/users/zrecommended#959363"
+        Ej: "https://z-library.sk/users/zrecommended#959363"
         Ingresa la url que recomienda los libros: `
       );
       await getBooks(url);

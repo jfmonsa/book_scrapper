@@ -1,12 +1,13 @@
 import puppeteer from "puppeteer";
 import cloudinary from "./config/cloudinary.js";
-import { pool } from "./db.js";
+import fs from "fs/promises";
 
 const CLOUDINARY_FOLDER = "bookCoverPics";
+let sqlContent = "";
 
 const getBooks = async (url) => {
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     defaultViewport: null,
   });
   const page = await browser.newPage();
@@ -18,16 +19,19 @@ const getBooks = async (url) => {
     for (const link of links) {
       await page.goto(link);
       const book = await extractBookInfo(page);
-      await insertBookInfo(book);
+      await generateSQLForBook(book);
     }
   } catch (error) {
     console.error("Error in getBooks:", error);
   } finally {
     await browser.close();
   }
+
+  await fs.writeFile("books_insert.sql", sqlContent);
+  console.log("SQL file written successfully!");
 };
 
-// aux declarative functions
+// Auxiliary declarative functions
 const getRecommendedBookLinks = async (page) => {
   await page.waitForSelector('div.bPcvCb > a.item[target="_blank"]');
   return page.evaluate(() =>
@@ -70,89 +74,80 @@ const extractBookInfo = async (page) => {
   });
 };
 
-const insertBookInfo = async (book) => {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    book.coverPath = await uploadImageToCloudinary(book.coverPath);
-    const bookId = await insertBookRecord(client, book);
-    await insertBookFiles(client, bookId);
-    await insertBookAuthor(client, bookId, book.author);
-    await insertBookLanguage(client, bookId, book.language);
-    await insertBookSubcategory(client, bookId, book.subcategory);
-    await client.query("COMMIT");
-    console.log("Book inserted successfully:", book.title);
-  } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Error inserting book data:", error);
-  } finally {
-    client.release();
-  }
+const generateSQLForBook = async (book) => {
+  // Upload the image to Cloudinary and get the secure URL
+  book.coverPath = await uploadImageToCloudinary(book.coverPath);
+  sqlContent += `
+    INSERT INTO BOOK (isbn, title, description, year_released, number_of_pages, publisher, cover_img_path) 
+    VALUES (${book.isbn ? `'${book.isbn}'` : "NULL"}, '${book.title.replace(
+    "'",
+    "''"
+  )}', '${book.description.replace("'", "''")}', 
+    ${book.year ? `'${book.year}'` : "NULL"}, ${
+    book.pages ? `'${book.pages}'` : "NULL"
+  }, 
+    ${book.publisher ? `'${book.publisher.replace("'", "''")}'` : "NULL"},
+    '${book.coverPath}');\n`;
+
+  const bookIdPlaceholder = "CURRVAL('BOOK_id_seq')"; // only postgres
+  sqlContent += generateSQLForBookFiles(bookIdPlaceholder);
+  sqlContent += generateSQLForBookAuthor(bookIdPlaceholder, book.author);
+  sqlContent += generateSQLForBookLanguage(bookIdPlaceholder, book.language);
+  sqlContent += generateSQLForBookSubcategory(
+    bookIdPlaceholder,
+    book.subcategory
+  );
 };
 
 const uploadImageToCloudinary = async (imageUrl) => {
-  if (imageUrl === "default.jpg") return imageUrl;
+  if (imageUrl === "default.jpg")
+    return "https://res.cloudinary.com/dlja4vnrd/image/upload/v1723489266/bookCoverPics/di2bbfam1c7ncljxnfw8.jpg";
   const uploadResult = await cloudinary.uploader.upload(imageUrl, {
     folder: CLOUDINARY_FOLDER,
   });
   return uploadResult.secure_url;
 };
 
-const insertBookRecord = async (client, book) => {
-  const { rows } = await client.query(
-    `INSERT INTO BOOK (isbn, title, descriptionB, yearReleased, nPages, publisher, pathBookCover) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-    [
-      book.isbn,
-      book.title,
-      book.description,
-      book.year,
-      book.pages,
-      book.publisher,
-      book.coverPath,
-    ]
-  );
-  return rows[0].id;
-};
-
-const insertBookFiles = async (client, bookId) => {
-  const fileTypes = ["book.pdf", "book.epub"];
-  await Promise.all(
-    fileTypes.map((fileType) =>
-      client.query("INSERT INTO BOOK_FILES (idBook, pathF) VALUES ($1, $2)", [
-        bookId,
-        fileType,
-      ])
+const generateSQLForBookFiles = (bookId) => {
+  const fileTypes = [
+    {
+      name: "book.pdf",
+      url: "https://res.cloudinary.com/dlja4vnrd/image/upload/v1730140399/Documento_sin_t%C3%ADtulo_mf50ar.pdf",
+    },
+    {
+      name: "book.epub",
+      url: "https://res.cloudinary.com/dlja4vnrd/raw/upload/v1730140399/Documento_sin_t%C3%ADtulo_awm8cq.epub",
+    },
+  ];
+  return fileTypes
+    .map(
+      (fileType) =>
+        `INSERT INTO BOOK_FILES (id_book, original_name, file_path) VALUES (${bookId}, '${fileType.name}', '${fileType.url}');\n`
     )
-  );
+    .join("");
 };
 
-const insertBookAuthor = async (client, bookId, author) => {
-  await client.query(
-    "INSERT INTO BOOK_AUTHORS (idBook, author) VALUES ($1, $2)",
-    [bookId, author]
-  );
+const generateSQLForBookAuthor = (bookId, author) => {
+  return `INSERT INTO BOOK_AUTHORS (id_book, author) VALUES (${bookId}, '${author.replace(
+    "'",
+    "''"
+  )}');\n`;
 };
 
-const insertBookLanguage = async (client, bookId, language) => {
-  await client.query(
-    "INSERT INTO BOOK_LANG (idBook, languageB) VALUES ($1, $2)",
-    [bookId, language]
-  );
+const generateSQLForBookLanguage = (bookId, language) => {
+  return `INSERT INTO BOOK_LANG (id_book, language) VALUES (${bookId}, '${language.replace(
+    "'",
+    "''"
+  )}');\n`;
 };
 
-const insertBookSubcategory = async (client, bookId, subcategory) => {
-  if (!subcategory) return;
-  const { rows } = await client.query(
-    "SELECT id FROM SUBCATEGORY WHERE subcategoryname = $1",
-    [subcategory]
-  );
-  if (rows.length > 0) {
-    await client.query(
-      "INSERT INTO BOOK_IN_SUBCATEGORY (idBook, idSubcategory) VALUES ($1, $2)",
-      [bookId, rows[0].id]
-    );
-  }
+const generateSQLForBookSubcategory = (bookId, subcategory) => {
+  if (!subcategory) return "";
+  return `INSERT INTO BOOK_IN_SUBCATEGORY (id_book, id_subcategory) 
+      SELECT ${bookId}, id FROM SUBCATEGORY WHERE name = '${subcategory.replace(
+    "'",
+    "''"
+  )}';\n`;
 };
 
 export default getBooks;

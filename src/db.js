@@ -7,7 +7,7 @@ dotenv.config();
 
 let pool = null;
 
-const BD = "local"; // "local" o "remota
+const BD = "remota"; // "local" o "remota
 
 if (BD == "remota") {
   pool = new Pool({
